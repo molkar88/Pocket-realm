@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#3a2a17">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Pocket Realm</title>
+  <meta name="description" content="A tiny low-poly adventure preview you can play in the browser on your phone.">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <div class="hud">
+    <span class="title">Pocket Realm</span>
+    <span class="logs">Logs: <strong id="logs">0</strong></span>
+  </div>
+
+  <p id="chat" class="chat" aria-live="polite"></p>
+
+  <noscript><p class="chat show">Pocket Realm needs JavaScript.</p></noscript>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

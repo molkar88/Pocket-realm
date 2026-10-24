@@ -37,7 +37,17 @@ export class Player {
     const blade = box(0.04, 0.16, 0.14, 0xb0b0b8);
     blade.position.set(0, 0.06, 0.2);
     axe.add(blade);
-    this.rightArm.add(axe);
+
+    const pickaxe = box(0.05, 0.45, 0.05, 0x6b4423);
+    pickaxe.position.copy(axe.position);
+    pickaxe.rotation.copy(axe.rotation);
+    const pickHead = box(0.04, 0.05, 0.42, 0x9a9aa4);
+    pickHead.position.y = 0.2;
+    pickaxe.add(pickHead);
+
+    this.tools = { axe, pickaxe };
+    this.rightArm.add(axe, pickaxe);
+    this.holdTool('axe');
 
     const body = box(0.48, 0.55, 0.28, 0x2d5fa8);
     body.position.y = 0.72;
@@ -53,6 +63,10 @@ export class Player {
     this.onArrive = null;
     this.action = null;
     this.animTime = 0;
+  }
+
+  holdTool(name) {
+    for (const [toolName, tool] of Object.entries(this.tools)) tool.visible = toolName === name;
   }
 
   get tile() {

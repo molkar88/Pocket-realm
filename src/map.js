@@ -1,18 +1,18 @@
-// ~ water, s sand, . grass, T tree, R rock, @ player spawn (on grass)
+// ~ water, s sand, . grass, T tree, C copper rock, N tin rock, @ player spawn (on grass)
 export const MAP = [
   '~~~~~~~~~~~~~~~~',
   '~~~~~ssssss~~~~~',
   '~~~ss......ss~~~',
   '~~s...T..T...s~~',
   '~~s.T........s~~',
-  '~s.....RR..T..s~',
-  '~s..T.........s~',
+  '~s.....CN..T..s~',
+  '~s..T......C..s~',
   '~s......@.....s~',
   '~s.T.......T..s~',
   '~s.....~~.....s~',
-  '~~s...~~~..R.s~~',
+  '~~s...~~~..N.s~~',
   '~~s.T..~...T.s~~',
-  '~~~s.......ss~~~',
+  '~~~s..C....ss~~~',
   '~~~~ss..T.s~~~~~',
   '~~~~~sssss~~~~~~',
   '~~~~~~~~~~~~~~~~',
@@ -23,7 +23,8 @@ const LEGEND = {
   s: { type: 'sand', object: null },
   '.': { type: 'grass', object: null },
   T: { type: 'grass', object: 'tree' },
-  R: { type: 'grass', object: 'rock' },
+  C: { type: 'grass', object: 'rock', ore: 'copper' },
+  N: { type: 'grass', object: 'rock', ore: 'tin' },
   '@': { type: 'grass', object: null },
 };
 

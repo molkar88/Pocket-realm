@@ -4,15 +4,31 @@ import { findPath, findPathToAdjacent } from './pathfinding.js';
 import { buildWorld } from './world.js';
 import { Player } from './player.js';
 
-const CHOP_SECONDS = 1.8;
-const REGROW_MS = 12000;
 const TAP_SLOP_PX = 8;
+
+const ACTIONS = {
+  tree: {
+    tool: 'axe',
+    seconds: 1.8,
+    restoreMs: 12000,
+    start: 'You swing your axe at the tree.',
+    success: () => 'You get some logs.',
+    empty: 'This tree has already been cut down.',
+  },
+  rock: {
+    tool: 'pickaxe',
+    seconds: 2.5,
+    restoreMs: 15000,
+    start: 'You swing your pick at the rock.',
+    success: (node) => `You manage to mine some ${node.item}.`,
+    empty: 'There is currently no ore available in this rock.',
+  },
+};
 
 const map = parseMap(MAP);
 const walkable = (x, z) => isWalkable(map, x, z);
 
 const canvas = document.querySelector('#game');
-const logsEl = document.querySelector('#logs');
 const chatEl = document.querySelector('#chat');
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -54,7 +70,7 @@ function showMarker(x, z, color, y = 0.02) {
   marker.visible = true;
 }
 
-let logs = 0;
+const inventory = { logs: 0, copper: 0, tin: 0 };
 let chatTimer = null;
 
 function say(text) {
@@ -78,27 +94,32 @@ function walkTo(x, z) {
   player.setPath(path);
 }
 
-function chop(tree) {
-  if (!tree.alive) {
-    say('This tree has already been cut down.');
+function addItem(item) {
+  inventory[item]++;
+  document.querySelector(`[data-item="${item}"]`).textContent = inventory[item];
+}
+
+function gather(node, action) {
+  if (!node.available) {
+    say(action.empty);
     return;
   }
-  const path = findPathToAdjacent(walkable, player.tile, tree);
+  const path = findPathToAdjacent(walkable, player.tile, node);
   if (!path) {
-    say("You can't reach that tree.");
+    say("You can't reach that.");
     return;
   }
-  showMarker(tree.x, tree.z, 0xff3030, 0.05);
+  showMarker(node.x, node.z, 0xff3030, 0.05);
   player.setPath(path, () => {
-    player.face(tree.x, tree.z);
-    say('You swing your axe at the tree.');
-    player.startAction(CHOP_SECONDS, () => {
-      if (!tree.alive) return;
-      tree.fell();
-      logs++;
-      logsEl.textContent = logs;
-      say('You get some logs.');
-      setTimeout(() => tree.regrow(), REGROW_MS);
+    player.face(node.x, node.z);
+    player.holdTool(action.tool);
+    say(action.start);
+    player.startAction(action.seconds, () => {
+      if (!node.available) return;
+      node.deplete();
+      addItem(node.item);
+      say(action.success(node));
+      setTimeout(() => node.restore(), action.restoreMs);
     });
   });
 }
@@ -117,8 +138,7 @@ function handleTap(clientX, clientY) {
   if (!hit) return;
 
   const target = hit.object.userData.target;
-  if (target.kind === 'tree') chop(target.tree);
-  else if (target.kind === 'rock') say('A sturdy rock. Mining is coming later.');
+  if (target.node) gather(target.node, ACTIONS[target.kind]);
   else walkTo(target.x, target.z);
 }
 
@@ -217,4 +237,4 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-say('Tap to walk. Tap a tree to chop it. Drag to turn, pinch to zoom.');
+say('Tap to walk. Tap trees to chop, rocks to mine. Drag to turn, pinch to zoom.');

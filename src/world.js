@@ -8,6 +8,9 @@ const COLORS = {
   trunk: 0x6b4423,
   leaves: 0x2f7d32,
   rock: 0x8a8a8a,
+  depletedRock: 0x55524e,
+  copper: 0xc8743a,
+  tin: 0xdde3e8,
 };
 
 // Deterministic per-tile noise so the grass isn't one flat colour.
@@ -48,34 +51,73 @@ function createTree(x, z) {
   const tree = {
     x,
     z,
-    alive: true,
+    item: 'logs',
+    available: true,
     group,
-    fell() {
-      tree.alive = false;
+    deplete() {
+      tree.available = false;
       trunk.visible = false;
       leaves.visible = false;
       stump.visible = true;
     },
-    regrow() {
-      tree.alive = true;
+    restore() {
+      tree.available = true;
       trunk.visible = true;
       leaves.visible = true;
       stump.visible = false;
     },
   };
 
-  for (const mesh of [trunk, leaves, stump]) mesh.userData.target = { kind: 'tree', x, z, tree };
+  for (const mesh of [trunk, leaves, stump]) mesh.userData.target = { kind: 'tree', x, z, node: tree };
   return tree;
 }
 
-function createRock(x, z) {
+function createRock(x, z, ore) {
   const material = new THREE.MeshLambertMaterial({ color: COLORS.rock, flatShading: true });
   const rock = shaded(material)(new THREE.Mesh(new THREE.DodecahedronGeometry(0.4, 0)));
   rock.position.set(x, 0.2, z);
   rock.scale.set(1, 0.7, 1);
   rock.rotation.y = tileNoise(x, z) * Math.PI;
-  rock.userData.target = { kind: 'rock', x, z };
-  return rock;
+
+  const fleckMaterial = new THREE.MeshLambertMaterial({ color: COLORS[ore], flatShading: true });
+  const fleckGeometry = new THREE.IcosahedronGeometry(0.08, 0);
+  const flecks = [0, 1, 2, 3].map((i) => {
+    const angle = (i / 4) * Math.PI * 2 + tileNoise(x + i, z);
+    const elevation = 0.25 + (i % 2) * 0.45;
+    const fleck = new THREE.Mesh(fleckGeometry, fleckMaterial);
+    fleck.position.set(
+      Math.cos(elevation) * Math.cos(angle) * 0.36,
+      Math.sin(elevation) * 0.36,
+      Math.cos(elevation) * Math.sin(angle) * 0.36,
+    );
+    rock.add(fleck);
+    return fleck;
+  });
+
+  const node = {
+    x,
+    z,
+    item: ore,
+    available: true,
+    mesh: rock,
+    deplete() {
+      node.available = false;
+      material.color.set(COLORS.depletedRock);
+      rock.scale.set(0.8, 0.5, 0.8);
+      rock.position.y = 0.14;
+      for (const fleck of flecks) fleck.visible = false;
+    },
+    restore() {
+      node.available = true;
+      material.color.set(COLORS.rock);
+      rock.scale.set(1, 0.7, 1);
+      rock.position.y = 0.2;
+      for (const fleck of flecks) fleck.visible = true;
+    },
+  };
+
+  for (const mesh of [rock, ...flecks]) mesh.userData.target = { kind: 'rock', x, z, node };
+  return node;
 }
 
 export function buildWorld(scene, map) {
@@ -107,9 +149,9 @@ export function buildWorld(scene, map) {
       pickables.push(...tree.group.children);
       trees.push(tree);
     } else if (tile.object === 'rock') {
-      const rock = createRock(x, z);
-      scene.add(rock);
-      pickables.push(rock);
+      const rock = createRock(x, z, tile.ore);
+      scene.add(rock.mesh);
+      pickables.push(rock.mesh, ...rock.mesh.children);
     }
   }));
 

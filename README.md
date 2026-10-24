@@ -8,6 +8,7 @@ A tiny low-poly adventure in the style of classic tile-based MMOs, made to play 
 | --- | --- | --- |
 | Walk | Tap a tile | Click a tile |
 | Chop a tree | Tap the tree | Click the tree |
+| Mine copper or tin | Tap the rock | Click the rock |
 | Turn camera | Drag with one finger | Drag with the mouse |
 | Zoom | Pinch | Scroll wheel |
 
@@ -35,15 +36,15 @@ Requires Node 18 or newer:
 npm test
 ```
 
-The tests cover pathfinding and check that every tree on the map can be reached from the spawn point.
+The tests cover pathfinding and map parsing, and check that every tree and rock on the map can be reached from the spawn point.
 
 ## Project layout
 
 - `index.html`, `style.css` – page and HUD
 - `src/main.js` – renderer, camera, input and game loop
-- `src/map.js` – the map as text (`~` water, `s` sand, `.` grass, `T` tree, `R` rock, `@` spawn)
-- `src/world.js` – builds the 3D tiles, trees and rocks
-- `src/player.js` – the character, walking and chopping animation
+- `src/map.js` – the map as text (`~` water, `s` sand, `.` grass, `T` tree, `C` copper rock, `N` tin rock, `@` spawn)
+- `src/world.js` – builds the 3D tiles, trees and ore rocks
+- `src/player.js` – the character, tools, and walking and gathering animations
 - `src/pathfinding.js` – A* pathfinding on the tile grid
 
 3D rendering uses [three.js](https://threejs.org/) r160, loaded from a CDN, so there is no build step.

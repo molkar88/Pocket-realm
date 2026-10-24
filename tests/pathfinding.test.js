@@ -70,18 +70,26 @@ test('findPathToAdjacent returns empty path when already beside target', () => {
   assert.deepEqual(findPathToAdjacent(walkable, { x: 0, z: 0 }, { x: 1, z: 0 }), []);
 });
 
-test('game map: every tree can be reached from spawn', () => {
+test('game map: every tree and rock can be reached from spawn', () => {
   const map = parseMap(MAP);
   const walkable = (x, z) => isWalkable(map, x, z);
   assert.ok(walkable(map.spawn.x, map.spawn.z));
 
-  let trees = 0;
+  const counts = { tree: 0, rock: 0 };
   map.tiles.forEach((row, z) => row.forEach((tile, x) => {
-    if (tile.object !== 'tree') return;
-    trees++;
-    assert.ok(findPathToAdjacent(walkable, map.spawn, { x, z }), `tree at ${x},${z} unreachable`);
+    if (!tile.object) return;
+    counts[tile.object]++;
+    assert.ok(findPathToAdjacent(walkable, map.spawn, { x, z }), `${tile.object} at ${x},${z} unreachable`);
   }));
-  assert.ok(trees > 0);
+  assert.ok(counts.tree > 0);
+  assert.ok(counts.rock > 0);
+});
+
+test('parseMap reads copper and tin rocks as blocking ore tiles', () => {
+  const map = parseMap(['@CN']);
+  assert.deepEqual(map.tiles[0][1], { type: 'grass', object: 'rock', ore: 'copper' });
+  assert.deepEqual(map.tiles[0][2], { type: 'grass', object: 'rock', ore: 'tin' });
+  assert.equal(isWalkable(map, 1, 0), false);
 });
 
 test('parseMap rejects bad maps', () => {

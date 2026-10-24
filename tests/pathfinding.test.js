@@ -70,12 +70,12 @@ test('findPathToAdjacent returns empty path when already beside target', () => {
   assert.deepEqual(findPathToAdjacent(walkable, { x: 0, z: 0 }, { x: 1, z: 0 }), []);
 });
 
-test('game map: every tree and rock can be reached from spawn', () => {
+test('game map: every tree, rock and furnace can be reached from spawn', () => {
   const map = parseMap(MAP);
   const walkable = (x, z) => isWalkable(map, x, z);
   assert.ok(walkable(map.spawn.x, map.spawn.z));
 
-  const counts = { tree: 0, rock: 0 };
+  const counts = { tree: 0, rock: 0, furnace: 0 };
   map.tiles.forEach((row, z) => row.forEach((tile, x) => {
     if (!tile.object) return;
     counts[tile.object]++;
@@ -83,6 +83,7 @@ test('game map: every tree and rock can be reached from spawn', () => {
   }));
   assert.ok(counts.tree > 0);
   assert.ok(counts.rock > 0);
+  assert.ok(counts.furnace > 0);
 });
 
 test('parseMap reads copper and tin rocks as blocking ore tiles', () => {

@@ -11,6 +11,8 @@ const COLORS = {
   depletedRock: 0x55524e,
   copper: 0xc8743a,
   tin: 0xdde3e8,
+  furnace: 0x6e6a66,
+  fire: 0xff7a1a,
 };
 
 // Deterministic per-tile noise so the grass isn't one flat colour.
@@ -120,10 +122,32 @@ function createRock(x, z, ore) {
   return node;
 }
 
+function createFurnace(x, z) {
+  const stone = new THREE.MeshLambertMaterial({ color: COLORS.furnace, flatShading: true });
+  const body = shaded(stone)(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8)));
+  body.position.y = 0.35;
+  const chimney = shaded(stone)(new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.45, 0.25)));
+  chimney.position.set(0.2, 0.9, -0.2);
+
+  // Two crossed glowing slabs poke out of the walls so the fire shows from every side.
+  const fireMaterial = new THREE.MeshBasicMaterial({ color: COLORS.fire });
+  const fireX = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.2, 0.3), fireMaterial);
+  const fireZ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.82), fireMaterial);
+  fireX.position.y = 0.22;
+  fireZ.position.y = 0.22;
+
+  const group = new THREE.Group();
+  group.position.set(x, 0, z);
+  group.add(body, chimney, fireX, fireZ);
+  for (const mesh of group.children) mesh.userData.target = { kind: 'furnace', x, z };
+  return { group, fireMaterial };
+}
+
 export function buildWorld(scene, map) {
   const pickables = [];
   const trees = [];
   const waterTiles = [];
+  const fires = [];
   const tileGeometry = new THREE.BoxGeometry(1, 0.3, 1);
 
   map.tiles.forEach((row, z) => row.forEach((tile, x) => {
@@ -152,6 +176,11 @@ export function buildWorld(scene, map) {
       const rock = createRock(x, z, tile.ore);
       scene.add(rock.mesh);
       pickables.push(rock.mesh, ...rock.mesh.children);
+    } else if (tile.object === 'furnace') {
+      const furnace = createFurnace(x, z);
+      scene.add(furnace.group);
+      pickables.push(...furnace.group.children);
+      fires.push(furnace.fireMaterial);
     }
   }));
 
@@ -170,6 +199,9 @@ export function buildWorld(scene, map) {
       for (const mesh of waterTiles) {
         const { x, z } = mesh.userData.target;
         mesh.position.y = -0.35 + Math.sin(time * 1.5 + x * 0.7 + z * 0.5) * 0.03;
+      }
+      for (const material of fires) {
+        material.color.setHSL(0.07, 1, 0.5 + Math.sin(time * 9) * 0.06 + Math.sin(time * 23) * 0.03);
       }
     },
   };

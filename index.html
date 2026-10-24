@@ -18,12 +18,26 @@
 
   <div class="hud">
     <span class="title">Pocket Realm</span>
-    <span class="inventory">
-      Logs <strong data-item="logs">0</strong>
-      · Copper <strong data-item="copper">0</strong>
-      · Tin <strong data-item="tin">0</strong>
-    </span>
   </div>
+
+  <div class="side">
+    <canvas id="minimap" class="minimap" aria-label="Minimap. Tap to walk there."></canvas>
+    <div class="side-buttons">
+      <button type="button" class="hud-button" data-panel="inventory-panel" aria-expanded="false" aria-label="Inventory">🎒</button>
+      <button type="button" class="hud-button" data-panel="skills-panel" aria-expanded="false" aria-label="Skills">📊</button>
+    </div>
+  </div>
+
+  <section id="inventory-panel" class="panel" hidden>
+    <h2>Inventory <span id="inventory-count">0/28</span></h2>
+    <div id="inventory-grid" class="inventory-grid"></div>
+    <p class="panel-hint">Tap an item to drop it.</p>
+  </section>
+
+  <section id="skills-panel" class="panel" hidden>
+    <h2>Skills</h2>
+    <div id="skill-list"></div>
+  </section>
 
   <p id="chat" class="chat" aria-live="polite"></p>
 

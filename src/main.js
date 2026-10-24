@@ -3,12 +3,21 @@ import { MAP, parseMap, isWalkable } from './map.js';
 import { findPath, findPathToAdjacent } from './pathfinding.js';
 import { buildWorld } from './world.js';
 import { Player } from './player.js';
+import { Inventory, ITEMS, canSmeltBronze, smeltBronze } from './inventory.js';
+import { SKILLS, createXp, addXp, levelForXp, actionSeconds } from './skills.js';
+import { Minimap } from './minimap.js';
+import { createUI } from './ui.js';
 
 const TAP_SLOP_PX = 8;
+const SAVE_KEY = 'pocket-realm-save-v1';
+const SMELT_SECONDS = 2;
+const SMELT_XP = 6.25;
 
 const ACTIONS = {
   tree: {
     tool: 'axe',
+    skill: 'woodcutting',
+    xp: 25,
     seconds: 1.8,
     restoreMs: 12000,
     start: 'You swing your axe at the tree.',
@@ -17,6 +26,8 @@ const ACTIONS = {
   },
   rock: {
     tool: 'pickaxe',
+    skill: 'mining',
+    xp: 17.5,
     seconds: 2.5,
     restoreMs: 15000,
     start: 'You swing your pick at the rock.',
@@ -70,7 +81,19 @@ function showMarker(x, z, color, y = 0.02) {
   marker.visible = true;
 }
 
-const inventory = { logs: 0, copper: 0, tin: 0 };
+function loadSave() {
+  try {
+    const data = JSON.parse(localStorage.getItem(SAVE_KEY));
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+const saved = loadSave();
+const inventory = new Inventory(saved.inventory);
+const xp = createXp(saved.xp);
+
 let chatTimer = null;
 
 function say(text) {
@@ -94,9 +117,39 @@ function walkTo(x, z) {
   player.setPath(path);
 }
 
-function addItem(item) {
-  inventory[item]++;
-  document.querySelector(`[data-item="${item}"]`).textContent = inventory[item];
+function saveProgress() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ inventory, xp }));
+  } catch {
+    // Storage can be unavailable (private browsing); progress just won't persist.
+  }
+}
+
+function changed() {
+  ui.update(inventory, xp);
+  saveProgress();
+}
+
+function gainXp(skill, amount, message) {
+  const level = addXp(xp, skill, amount);
+  say(level ? `Congratulations, you just advanced a ${SKILLS[skill].name} level. You are now level ${level}.` : message);
+}
+
+function fullMessage(item) {
+  return `Your inventory is too full to hold any more ${ITEMS[item].name.toLowerCase()}.`;
+}
+
+function approach(target, onArrive) {
+  const path = findPathToAdjacent(walkable, player.tile, target);
+  if (!path) {
+    say("You can't reach that.");
+    return;
+  }
+  showMarker(target.x, target.z, 0xff3030, 0.05);
+  player.setPath(path, () => {
+    player.face(target.x, target.z);
+    onArrive();
+  });
 }
 
 function gather(node, action) {
@@ -104,25 +157,64 @@ function gather(node, action) {
     say(action.empty);
     return;
   }
-  const path = findPathToAdjacent(walkable, player.tile, node);
-  if (!path) {
-    say("You can't reach that.");
+  if (inventory.isFull()) {
+    say(fullMessage(node.item));
     return;
   }
-  showMarker(node.x, node.z, 0xff3030, 0.05);
-  player.setPath(path, () => {
-    player.face(node.x, node.z);
+  approach(node, () => {
     player.holdTool(action.tool);
     say(action.start);
-    player.startAction(action.seconds, () => {
+    player.startAction(actionSeconds(action.seconds, levelForXp(xp[action.skill])), () => {
       if (!node.available) return;
+      if (!inventory.add(node.item)) {
+        say(fullMessage(node.item));
+        return;
+      }
       node.deplete();
-      addItem(node.item);
-      say(action.success(node));
+      gainXp(action.skill, action.xp, action.success(node));
+      changed();
       setTimeout(() => node.restore(), action.restoreMs);
     });
   });
 }
+
+// Keeps smelting bars until the player runs out of ore or walks away.
+function smeltNext() {
+  if (!canSmeltBronze(inventory)) return;
+  player.startAction(actionSeconds(SMELT_SECONDS, levelForXp(xp.smithing)), () => {
+    if (!smeltBronze(inventory)) return;
+    gainXp('smithing', SMELT_XP, 'You retrieve a bar of bronze.');
+    changed();
+    smeltNext();
+  });
+}
+
+function smelt(furnace) {
+  if (!canSmeltBronze(inventory)) {
+    say('You need one copper ore and one tin ore to make a bronze bar.');
+    return;
+  }
+  approach(furnace, () => {
+    player.holdTool(null);
+    say('You place the copper and tin into the furnace.');
+    smeltNext();
+  });
+}
+
+const ui = createUI({
+  onDrop(index) {
+    const item = inventory.removeAt(index);
+    if (!item) return;
+    say(`You drop the ${ITEMS[item].name.toLowerCase()}.`);
+    changed();
+  },
+});
+ui.update(inventory, xp);
+
+const minimap = new Minimap(document.querySelector('#minimap'), map, (dx, dz) => {
+  const { x, z } = player.object.position;
+  walkTo(Math.round(x + dx), Math.round(z + dz));
+});
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -138,7 +230,8 @@ function handleTap(clientX, clientY) {
   if (!hit) return;
 
   const target = hit.object.userData.target;
-  if (target.node) gather(target.node, ACTIONS[target.kind]);
+  if (target.kind === 'furnace') smelt(target);
+  else if (target.node) gather(target.node, ACTIONS[target.kind]);
   else walkTo(target.x, target.z);
 }
 
@@ -227,6 +320,7 @@ renderer.setAnimationLoop(() => {
   player.update(dt);
   world.update(clock.elapsedTime);
   updateCamera(dt);
+  minimap.draw(player.object.position, view.yaw);
 
   if (marker.visible) {
     markerTime -= dt;
@@ -237,4 +331,4 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-say('Tap to walk. Tap trees to chop, rocks to mine. Drag to turn, pinch to zoom.');
+say('Tap to walk. Chop trees, mine rocks, smelt bronze at the furnace. Drag to turn, pinch to zoom.');
